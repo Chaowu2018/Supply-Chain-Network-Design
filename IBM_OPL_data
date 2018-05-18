@@ -1,0 +1,240 @@
+/*********************************************
+ * OPL 12.5.1.0 Data
+ * Author: ccwu5
+ * Creation Date: Mar 26, 2018 at 1:43:43 PM
+ *********************************************/
+
+//********************* Data *********************************
+NumMonths = 12;
+
+
+FG_products = {A,B};  //FG products based on demand, 
+
+
+Inter_products ={C,D}; // components
+
+O_Plants ={"O1","O2"}; //Plants
+Customers ={"C1","C2"}; //all customer location
+D_Plants = {"D1","D2"}; 
+
+
+CustSourceSet = {
+        < "C1", "D1", A, 150, 20, 1500 >
+        < "C1", "D2", B, 150, 35, 1500 >    
+        < "C2", "D1", A, 150, 45, 1500 >
+        < "C2", "D2", B, 150, 55, 1500 > 
+        };
+
+// Customer Information for demand
+
+CustMonDemand_FG = {
+      < "C1", A, [0, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,100 ]  >
+      < "C2", A, [0, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,100 ]  >
+      < "C1", B, [0, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,100 ]  >
+      < "C2", B, [0, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,100 ]  >
+};
+
+/*tuple custMonthlyDemand{
+  string Customers;
+  string FG_products;
+  float monthlydemand[Months];
+  }
+{custMonthlyDemand} CustMonDemand_FG = ...;
+
+tuple custSource {        //Customers' information
+  string cust;
+  string Source;
+  string fg;
+  float  sourcing_cost;
+  float  transportation_cost;
+  float  sales_price;
+}
+
+{custSource}CustSourceSet=...;*/
+
+Production_Data_fg = {
+   < "O1", A, 2, 300, 140, .92, 28000 >
+   < "O2", A, 1, 300, 140, .92, 22000 >
+   < "O1", B, 1, 300, 140, .92, 28000 >
+   < "O2", B, 2, 300, 140, .92, 22000 >
+}; 
+
+Production_Data_com = {
+   < "O1", C, 5,  300, 140, .92, 28000 >
+   < "O2", C, 3, 300, 140, .92, 22000 >
+   < "O1", D, 2,  300, 140, .92, 28000 >
+   < "O2", D, 10, 300, 140, .92, 22000 >
+}; 
+
+
+/* // Production Information
+tuple ProductionData_fg {
+  string O_plants;
+  string fg;
+  float  man_cost;     // $ per reg
+  float  productionCap;      // tons per hour
+  float  manuReliability;    // manufacturing reliability (%)
+  float  finProdStorCap;     // finished product storage capacity - inventory max
+  float  feedStockStorCap;   // feedstock storage capacity (reg)
+}
+{ProductionData_fg} Production_Data_fg  = ...;
+
+ // Production Information
+tuple ProductionData_inter {
+  string O_plants;
+  string com;
+  float  man_cost;     // $ per reg
+  float  productionCap;      // tons per hour
+  float  manuReliability;    // manufacturing reliability (%)
+  float  finProdStorCap;     // finished product storage capacity - inventory max
+  float  feedStockStorCap;   // feedstock storage capacity (reg)
+}
+{ProductionData_inter} Production_Data_com  = ...;*/
+
+Interfacility_data_fg = {
+   < "D1",  "O1", A, 1 >
+   < "D1",  "O1", B, 2 >
+   < "D2",  "O2", A, 1 >
+   < "D2",  "O2", B, 2 >
+   < "D2",  "O1", A, 1 >
+   < "D2",  "O1", B, 2 >
+   < "D1",  "O2", A, 1 >
+   < "D1",  "O2", B, 2 >
+};
+
+Interfacility_data_com = {
+   < "D1",  "O1", C, 1 >
+   < "D1",  "O1", D, 2 >
+   < "D2",  "O2", C, 1 >
+   < "D2",  "O2", D, 1>
+   < "D2",  "O1", C, 1 >
+   < "D2",  "O1", D, 2 >
+   < "D1",  "O2", C, 1 >
+   < "D1",  "O2", D, 1>
+};
+
+
+/*/interplant transfer data
+tuple InterPlant_data_fg {
+  string D_plants;
+  string O_plants;
+  string fg;  
+  float  transportation_cost;
+  //float  sourcing_cost;
+  //float  feedstockReplLotSize; //feedstock replenishment lot size
+}
+{InterPlant_data_fg} Interfacility_data_fg  = ...;
+
+tuple InterPlant_data_inter {
+  string D_plants;
+  string O_plants;
+  string com;  
+  float  transportation_cost;
+  //float  sourcing_cost;
+  //float  feedstockReplLotSize; //feedstock replenishment lot size
+} 
+{InterPlant_data_inter} Interfacility_data_com  = ...;*/
+
+/*
+tuple bill_of_material_fg{
+  string O_Plants;
+  string FG_products;
+  string Inter_products;
+}  
+{bill_of_material_fg} bom_fg = ...; 
+
+tuple bill_of_material_inter{
+  string O_plants;
+  string inter_prod;
+  string com;
+}  
+{bill_of_material_inter} bom_inter = ...; 
+
+float Bill_of_material_inter[bom_inter]=...;
+float Bill_of_material_fg[bom_fg]=...; */
+bom_fg = {
+	<"O1",A, C>  //1
+	<"O1",A, D>  //1
+	<"O2",B, C>  //1 
+	<"O2",B, D>  //1
+	<"O2",A, C>  //1
+	<"O2",A, D>  //1
+	<"O1",B, C>  //1
+	<"O1",B, D>  //1
+};
+
+bom_inter = {
+	<"O1",D, C>
+	<"O1",C, C>
+	<"O1",D, D>
+	<"O1",C, D>
+	<"O2",D, C>
+	<"O2",C, C>
+	<"O2",D, D>
+	<"O2",C, D>
+};
+
+Bill_of_material_fg=[2,3,7,8,9,4,5,6];
+Bill_of_material_inter=[1,0,0,0,0,0,0,1];
+
+/*
+Bill_of_material_fg={
+	<"O1",A, C, 1>  //1
+	<"O1",A, D, 2>  //1
+	<"O2",B, C, 1>  //1 
+	<"O2",B, D, 1>  //1
+	<"O2",A, C, 1>  //1
+	<"O2",A, D, 1>  //1
+	<"O1",B, C, 1>  //1
+	<"O1",B, D, 1>  //1
+};
+
+Bill_of_material_inter = {
+	<"O1",D, C,1>
+	<"O2",D, C,2>
+};
+*/
+//Bill_of_material_fg = [ 1,2,1,1,1,1,1,0 ];
+
+
+
+
+//Bill_of_material_inter = [0,0];
+
+
+/*float BegInv_D_plant_FG[D_Plants][FG_products] = ...; 
+float BegInv_D_plant_In[D_Plants][Inter_products] = ...;
+float BegInv_O_plant_FG[O_Plants][FG_products] = ...; 
+float BegInv_O_plant_In[O_Plants][Inter_products] = ...;  */
+
+
+BegInv_D_plant_FG = [ [ 0 , 0], [ 0, 0 ] ];
+BegInv_D_plant_In = [ [ 0 , 0], [ 0, 0 ] ];
+BegInv_O_plant_FG = [ [ 0 , 0], [ 0, 0 ] ];
+BegInv_O_plant_In = [ [ 0 , 0], [ 0, 0 ] ];
+
+/* Beginning_Inventory = {
+	<"O1", A, 1>
+	<"O1", B, 1>
+	<"O2", A, 1>
+	<"O2", B, 1>
+	<"O1", C, 1>
+	<"O1", D, 1>
+	<"O2", C, 1>
+	<"O2", D, 1>
+	<"D1", A, 1>
+	<"D1", B, 1>
+	<"D2", A, 1>
+	<"D2", B, 1>
+	<"D1", C, 1>
+	<"D1", D, 1>
+	<"D2", C, 1>
+	<"D2", D, 1>
+};
+/ Finished Goods Inventories at each plant
+tuple Beg_Inventory {
+  string plants;
+  string products;
+  float inventory;
+}
+{Beg_Inventory} Beginning_Inventory = ...; */
