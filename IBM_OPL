@@ -1,0 +1,388 @@
+/*********************************************
+ * OPL 12.5.1.0 Data
+ * Author: ccwu5
+ * Creation Date: Mar 26, 2018 at 1:43:43 PM
+ *********************************************/
+//Network Design Model 
+//First successful run on April 12th, 2018 
+//April 16th, found problem with bom, mostly fixed, still need to check with intermediet product
+//April 19th, seems to work now; next step to put bom together and plants together
+execute {
+   cplex.epgap = 0.001;
+}
+
+//********************* Data *********************************
+int NumMonths = ...;
+range Months = 0..NumMonths; //Months 1-12
+
+{string} FG_products = ...;  //FG products based on demand, 
+{string} Inter_products = ...; // components
+
+{string} O_Plants = ...; //Plants, 1042, 1043, 1077, 1088, 1315, 1027, 1028, +Silvassa + tollers
+{string} Customers = ...; //all customer location
+{string} D_Plants = ...; 
+ 
+// Customer Information for demand
+
+tuple custMonthlyDemand{
+  string Customers;
+  string FG_products;
+  float monthlydemand[Months];
+  }
+{custMonthlyDemand} CustMonDemand_FG = ...;
+
+tuple custSource {        //Customers' information
+  string cust;
+  string Source;
+  string fg;
+  float  sourcing_cost;
+  float  transportation_cost;
+  float  sales_price;
+}
+
+{custSource}CustSourceSet=...;
+
+ // Production Information
+tuple ProductionData_fg {
+  string O_plants;
+  string fg;
+  float  man_cost;     // $ per reg
+  float  productionCap;      // tons per hour
+  float  manuReliability;    // manufacturing reliability (%)
+  float  finProdStorCap;     // finished product storage capacity - inventory max
+  float  feedStockStorCap;   // feedstock storage capacity (reg)
+}
+{ProductionData_fg} Production_Data_fg  = ...;
+
+ // Production Information
+tuple ProductionData_inter {
+  string O_plants;
+  string com;
+  float  man_cost;     // $ per reg
+  float  productionCap;      // tons per hour
+  float  manuReliability;    // manufacturing reliability (%)
+  float  finProdStorCap;     // finished product storage capacity - inventory max
+  float  feedStockStorCap;   // feedstock storage capacity (reg)
+}
+{ProductionData_inter} Production_Data_com  = ...;
+
+//interplant transfer data
+tuple InterPlant_data_fg {
+  string D_plants;
+  string O_plants;
+  string fg;  
+  float  transportation_cost;
+  //float  sourcing_cost;
+  //float  feedstockReplLotSize; //feedstock replenishment lot size
+}
+{InterPlant_data_fg} Interfacility_data_fg  = ...;
+
+tuple InterPlant_data_inter {
+  string D_plants;
+  string O_plants;
+  string com;  
+  float  transportation_cost;
+  //float  sourcing_cost;
+  //float  feedstockReplLotSize; //feedstock replenishment lot size
+} 
+{InterPlant_data_inter} Interfacility_data_com  = ...;
+
+
+//routes information 
+ tuple route {
+   string o;
+   string d;
+   string product;
+ };
+ //{route}Inter_routes=...;   
+ 
+// All routes from D plants to customers with fg       
+{route} RoutesCust = { <D_plants,customers,fg> | 
+   <customers, D_plants, fg, sourcing_cost, transportation_cost, sales_price> in CustSourceSet };
+     
+// All routes from O plants to customers with fg
+{route} RoutesPlant_fg = { <O_plants,D_plants,fg> | <D_plants,O_plants, fg, transportation_cost 
+         > in Interfacility_data_fg };
+
+// All routes from O plants to customers with com
+{route} RoutesPlant_com = { <O_plants,D_plants,com> | <D_plants,O_plants, com, transportation_cost 
+         > in Interfacility_data_com };
+
+//Bill_of_Materials
+tuple bill_of_material_fg{
+  string O_Plants;
+  string FG_products;
+  string Inter_products;
+}  
+{bill_of_material_fg} bom_fg = ...; 
+
+tuple bill_of_material_inter{
+  string O_Plants;
+  string inter_products;
+  string Inter_products;
+}  
+{bill_of_material_inter} bom_inter = ...; 
+
+float Bill_of_material_inter[bom_inter]=...;
+float Bill_of_material_fg[bom_fg]=...;
+/*
+
+//Bill_of_Materials
+tuple bill_of_material_fg{
+  string O_Plants;
+  string fg;
+  string com;
+  float yield;
+}  
+{bill_of_material_fg} Bill_of_material_fg = ...; 
+
+tuple bill_of_material_inter{
+  string O_Plants;
+  string inter_prod;
+  string com;
+  float yield;
+}  
+{bill_of_material_inter} Bill_of_material_inter = ...; 
+*/
+
+//routes information 
+/* tuple production_plant {
+   string O_plants;
+   string material;
+ };
+ //{route}Inter_routes=...;   
+ 
+tuple Beg_Inventory {
+  string plants;
+  string products;
+  float inventory;
+}
+{Beg_Inventory} Beginning_Inventory = ...; */
+
+//Inventory at start
+float BegInv_D_plant_FG[D_Plants][FG_products] = ...; 
+float BegInv_D_plant_In[D_Plants][Inter_products] = ...;
+float BegInv_O_plant_FG[O_Plants][FG_products] = ...; 
+float BegInv_O_plant_In[O_Plants][Inter_products] = ...;  
+
+/*decision variables*/
+// Shipment on each route each month
+dvar float+ shipment_Cust_FG[Months][RoutesCust]; //shipment to Destination plants
+dvar float+ shipment_Inter_Inter[Months][RoutesPlant_com]; //interfacility transfer for intermediet products
+dvar float+ shipment_Inter_FG[Months][RoutesPlant_fg]; //interfacility transfer for FG
+ 
+// Finished Goods Inventories at each plant
+
+
+dvar float+ Inventory_DPlants_IN[Months][D_Plants][Inter_products];
+dvar float+ Inventory_DPlants_FG[Months][D_Plants][FG_products];
+dvar float+ Inventory_OPlants_IN[Months][O_Plants][Inter_products];
+dvar float+ Inventory_OPlants_FG[Months][O_Plants][FG_products];
+
+// component consumed
+dvar float+ component_needed_in[Months][O_Plants][Inter_products]; //only allow production happens in O plants
+dvar float+ component_needed_fg[Months][O_Plants][Inter_products];
+dvar float component_needed_all[Months][O_Plants][Inter_products];
+//dexpr float component_needed_all[mon in Months][o in O_Plants][com in Inter_products]= component_needed_in[mon][o][com]+component_needed_fg[mon][o][com];
+// Production Quantities for each month at each plant
+dvar float+ Production_FG[Months][O_Plants][FG_products];
+dvar float+ Production_Inter[Months][O_Plants][Inter_products];
+
+//everything produced in O plant will ship to D plant to store, O plant has no inventory set up
+//dexpr float Production_FG[mon in Months][o in O_Plants][fg in FG_products] = sum(route in Inter_routes)sum(d in D_Plants)shipment_Inter_FG[mon][route][fg];
+//dexpr float Production_Inter[mon in Months][o in O_Plants][com in Inter_products] = sum(route in Inter_routes)sum(d in D_Plants) shipment_Inter_Inter[mon][route][com];
+
+// Costs
+//transportation or sourcing or price
+
+dvar float+ Cost_customer_FL[Months][RoutesCust];
+dvar float+ Cost_inter_com_FL[Months][RoutesPlant_com];
+dvar float+ Cost_inter_fg_FL[Months][RoutesPlant_fg];
+
+dexpr float Cost_FL = sum(mon in Months, route in RoutesCust) Cost_customer_FL[mon][route]+
+sum(mon in Months, route_inter_com in RoutesPlant_com)Cost_inter_com_FL[mon][route_inter_com]+
+sum(mon in Months, route_inter_fg in RoutesPlant_fg)Cost_inter_fg_FL[mon][route_inter_fg];
+//conversion cost or manufacturing cost
+
+dvar float+ Cost_Conversion_FG[Months][O_Plants][FG_products];
+dvar float+ Cost_Conversion_inter[Months][O_Plants][Inter_products];
+
+dexpr float Cost_make = sum (mon in Months, o in O_Plants, fg in FG_products)Cost_Conversion_FG[mon][o][fg]
++sum (mon in Months, o in O_Plants, com in Inter_products)Cost_Conversion_inter[mon][o][com];  
+
+//sum (mon in Months, b in Plants, p in products)
+//dvar float+ Cost_inventory[Months][Plants][Customers][products];    // inventory cost
+//dexpr float Cost_FL=sum(mon in Months, o in origin, d in destination, p in products)shipment[mon][route][p]*(Arcs[route][p].DistCost+Arcs[route][p].SourcingCost);   //interfacility sourcing transportation cost
+
+dexpr float TotalCost = Cost_FL + Cost_make;  
+             
+           
+minimize TotalCost;
+
+subject to {   
+
+  //Cost definition
+ forall (mon in Months, cs in CustSourceSet)
+   ct_customer_FL_cost:
+     Cost_customer_FL[mon][<cs.Source,cs.cust,cs.fg>]==
+     shipment_Cust_FG[mon][<cs.Source,cs.cust,cs.fg>] * (cs.transportation_cost+cs.sourcing_cost);
+ 
+ forall ( inin in Interfacility_data_com, mon in Months)
+   ct_Cost_inter_com_FL:
+     Cost_inter_com_FL[mon][<inin.O_plants,inin.D_plants,inin.com>]==
+     shipment_Inter_Inter[mon][<inin.O_plants,inin.D_plants,inin.com>]*inin.transportation_cost;
+     
+  forall ( infg in Interfacility_data_fg, mon in Months)
+   ct_Cost_inter_fg_FL:
+     Cost_inter_fg_FL[mon][<infg.O_plants, infg.D_plants,infg.fg>]==
+     shipment_Inter_FG[mon][<infg.O_plants, infg.D_plants,infg.fg>]*infg.transportation_cost;    
+ 
+ forall(pdfg in Production_Data_fg, mon in Months)
+   ct_production_cost_fg:
+ Cost_Conversion_FG[mon][pdfg.O_plants][pdfg.fg] == 
+ 	Production_FG[mon][pdfg.O_plants][pdfg.fg]*pdfg.man_cost;
+  
+  forall(pdcom in Production_Data_com, mon in Months)
+   ct_production_cost_com:
+ Cost_Conversion_inter[mon][pdcom.O_plants][pdcom.com] == 
+ 	Production_Inter[mon][pdcom.O_plants][pdcom.com]*pdcom.man_cost;    
+ 
+//Begining inventory 
+     forall (d in D_Plants, fg in FG_products)
+      ct_beg_DInventory_fg:
+    Inventory_DPlants_FG[0][d][fg] == BegInv_D_plant_FG[d][fg];        
+    
+    forall (d in D_Plants, com in Inter_products)
+      ct_beg_Dinventory_inter:
+    Inventory_DPlants_IN[0][d][com]== BegInv_D_plant_In[d][com];
+    
+    forall (o in O_Plants, fg in FG_products)
+      ct_beg_OInventory_fg:
+	Inventory_OPlants_FG[0][o][fg] == BegInv_O_plant_FG[o][fg];        
+   
+    forall (o in O_Plants, com in Inter_products)
+      ct_beg_Onventory_inter:
+    Inventory_OPlants_IN[0][o][com]== BegInv_O_plant_In[o][com];
+    
+  
+  // Set Inventory Maximums
+  // constraint inventory at each plant, each product and each month; 
+ 
+  forall(prod_in in Production_Data_com, mon in Months)
+    ct_Inv_StorCap_In:
+      Inventory_OPlants_IN[mon][prod_in.O_plants][prod_in.com] <= prod_in.productionCap;
+  
+  forall(prod_fg in Production_Data_fg, mon in Months)
+    ct_Inv_StorCap_FG:
+      Inventory_OPlants_FG[mon][prod_fg.O_plants][prod_fg.fg] <= prod_fg.productionCap;
+
+//component consumption
+ forall(o in O_Plants,mon in Months)
+   forall(com in Inter_products) //sum(fg in FG_products)
+     ////need to fix
+   ct_component_fg_consumption:
+sum(fg in FG_products)Production_FG[mon][o][fg]*Bill_of_material_fg[<o,fg,com>]
+ ==component_needed_fg[mon][o][com];
+ 
+  //component consumption
+ forall(o in O_Plants,mon in Months)  ////need to fix
+ 	forall(com in Inter_products) //sum(j in Inter_products) 
+   ct_component_in_consumption: 
+ 	sum(j in Inter_products)Production_Inter[mon][o][j]*Bill_of_material_inter[<o,j,com>]
+ ==component_needed_in[mon][o][com]; 
+
+forall(mon in Months, o in O_Plants, com in Inter_products)
+  component_needed_all[mon][o][com] - component_needed_in[mon][o][com] - component_needed_fg[mon][o][com]==0;
+
+/* 
+ forall(mon in Months,bom_fg in Bill_of_material_fg)  ////need to fix
+   ct_component_fg_consumption:
+sum(fg in FG_products:bom_fg.fg == fg)Production_FG[mon][bom_fg.O_Plants][fg]*bom_fg.yield
+ ==component_needed_fg[mon][bom_fg.O_Plants][bom_fg.com];
+ 
+  //component consumption
+ forall(mon in Months,bom_in in Bill_of_material_inter)  ////need to fix
+   ct_component_in_consumption:
+	Production_Inter[mon][bom_in.O_Plants][bom_in.inter_prod]*bom_in.yield
+ ==component_needed_in[mon][bom_in.O_Plants][bom_in.com];
+
+ */
+ //test
+forall(o in O_Plants,fg in FG_products)
+   Production_FG[3][o][fg] == 100;
+ 
+//forall(o in O_Plants,com in Inter_products)
+ //  Production_Inter[3][o][com] ==100; 
+
+/* dvar float+ shipment_Cust_FG[Months][RoutesCust]; //shipment to Destination plants
+dvar float+ shipment_Inter_Inter[Months][RoutesPlant_com]; //interfacility transfer for intermediet products
+dvar float+ shipment_Inter_FG[Months][RoutesPlant_fg]; //interfacility transfer for FG
+
+dvar float+ Production_FG[Months][O_Plants][FG_products];
+dvar float+ Production_Inter[Months][O_Plants][Inter_products];
+*/
+ // component inventory balance
+   
+ forall(mon in Months: (mon-1) in Months, o in O_Plants, com in Inter_products)
+   ct_component_inventory:
+ Inventory_OPlants_IN[mon][o][com]+component_needed_all[mon][o][com]
+ +sum(route in RoutesPlant_com:route.o==o&&route.product==com)shipment_Inter_Inter[mon][route]
+ == Inventory_OPlants_IN[mon-1][o][com]+Production_Inter[mon][o][com] //add in production inter
+ +sum(route in RoutesPlant_com:route.d==o&&route.product==com)shipment_Inter_Inter[mon][route];
+ //Shipment constraints
+ //Production-Inventory constraints: (at month at plant for product) production + inventory from last month +incoming = outgoing + inventory for this month
+ //FG in plants
+   forall(mon in Months: (mon-1) in Months, d in D_Plants, fg in FG_products)
+     FG_D_Plants_Inventory:
+   sum(route in RoutesPlant_fg:route.d==d&&route.product==fg)shipment_Inter_FG[mon][route] 
+   + Inventory_DPlants_FG[mon-1][d][fg] ==
+      sum(route in RoutesPlant_fg:route.o==d&&route.product==fg)shipment_Cust_FG[mon][route]
+      + Inventory_DPlants_FG[mon][d][fg];  //need to think
+	
+	forall (mon in Months: (mon-1) in Months, d in D_Plants, com in Inter_products)
+	Inter_D_Plants_Inventory:
+	Inventory_DPlants_IN[mon][d][com]+sum(route in RoutesPlant_com:route.o==d&&route.product==com)/*sum(o in O_Plants)*/shipment_Inter_Inter[mon][route]==
+	Inventory_DPlants_IN[mon-1][d][com]+sum(route in RoutesPlant_com:route.d==d&&route.product==com)/*sum(m in D_Plants)*/shipment_Inter_Inter[mon][route];
+
+	forall (mon in Months: (mon-1) in Months, o in O_Plants,fg in FG_products)
+	FG_O_Plants_inventory:
+	Inventory_OPlants_FG[mon][o][fg]+sum(route in RoutesPlant_fg:route.o==o&&route.product==fg)/*sum(m in O_Plants)*/shipment_Inter_FG[mon][route]==
+	Inventory_OPlants_FG[mon-1][o][fg]+sum(route in RoutesPlant_fg:route.d==o&&route.product==fg)/*sum(d in D_Plants)*/shipment_Inter_FG[mon][route]
+	+Production_FG[mon][o][fg];
+
+
+
+    //trial
+//forall (mon in Months, o in O_Plants, com in Inter_products)
+	//Inventory_OPlants_IN[mon][o][com]==0;
+	
+//forall (mon in Months, o in O_Plants, fg in FG_products)
+   //Inventory_OPlants_FG[mon][o][fg]== 0 ;
+forall (mon in Months, o in O_Plants, fg in FG_products)
+Production_FG[mon][o][fg]>=0;
+
+/*forall (mon in Months, d in D_Plants, com in Inter_products)
+Inventory_DPlants_IN[mon][d][com]==0;
+forall (mon in Months, d in D_Plants, fg in FG_products)
+Inventory_DPlants_FG[mon][d][fg]== 0; */
+//demand needs to be fulfilled
+
+  
+ /*forall (cu in CustMonDemand_FG, c in Customers, fg in FG_products, mon in Months)
+  ct_demand: 
+ cu.monthlydemand[mon]  <=
+sum(cs in CustSourceSet: cu.Customers == cs.cust && cu.FG_products == cs.fg) shipment_Cust_FG[mon][<cs.Source,cs.cust,cs.fg>];
+
+ 
+ // Customer Information for demand
+
+tuple custMonthlyDemand{
+  string Customers;
+  string FG_products;
+  float monthlydemand[Months];
+  }
+{custMonthlyDemand} CustMonDemand_FG = ...;
+ */ 
+  
+  
+ }
